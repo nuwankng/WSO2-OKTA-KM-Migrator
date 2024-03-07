@@ -1,11 +1,11 @@
-package utilities;
+package org.wso2.migrator.utilities;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Scanner;
 
-public class DBConnection {
+public class DBConnectionUtils {
 //    private static String dbhost = "jdbc:mysql://localhost:3306/420_apimdb";
 
     private static String dbhost = "jdbc:sqlserver://localhost:1433;databaseName=WSO2AM_DB";

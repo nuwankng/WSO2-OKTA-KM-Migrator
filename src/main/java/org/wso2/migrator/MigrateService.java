@@ -1,30 +1,27 @@
+package org.wso2.migrator;
+
 import com.google.gson.Gson;
-import com.mysql.cj.jdbc.BlobFromLocator;
-import model.Application;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.json.simple.JSONArray;
+
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.wso2.carbon.apimgt.api.model.OAuthApplicationInfo;
-import utilities.DBConnection;
+import org.wso2.migrator.constants.OktaConstants;
+import org.wso2.migrator.model.OauthAppInformation;
+import org.wso2.migrator.utilities.DBConnectionUtils;
 import org.apache.http.impl.client.CloseableHttpClient;
 
-import javax.swing.plaf.IconUIResource;
 import java.io.*;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
+
 
 public class MigrateService {
 
@@ -48,7 +45,7 @@ public class MigrateService {
         String sql_select = "select *  from " +
                 "dbo.AM_APPLICATION_KEY_MAPPING where KEY_MANAGER='2aaae1a8-6bdd-4a14-b513-fa59552a28d6' and CONSUMER_KEY IS NOT NULL and APP_INFO IS NULL;";
 
-        try (Connection conn = DBConnection.createNewDBconnection()) {
+        try (Connection conn = DBConnectionUtils.createNewDBconnection()) {
             stmt = conn.createStatement();
             results = stmt.executeQuery(sql_select);
             System.out.println("Migrating of Applications");
@@ -58,13 +55,13 @@ public class MigrateService {
                 System.out.println("Consumer ID : " + results.getString("CONSUMER_KEY"));
 
 //                String oktaInstanceUrl = configuration.getParameter(OktaConstants.OKTA_INSTANCE_URL);
-//                String apiKey = configuration.getParameter(OktaConstants.REGISTRAION_API_KEY);
+//                String apiKey = configuration.getParameter(OktaConstants.REGISTRATION_API_KEY);
 //                String registrationEndpoint = oktaInstanceUrl + OktaConstants.CLIENT_ENDPOINT;
                 String clientId = "";
                 clientId = results.getString("CONSUMER_KEY");
-                String oktaInstanceUrl = "https://test.okta.com";
-                String apiKey = "api-key";
-                String registrationEndpoint = oktaInstanceUrl + "/oauth2/v1/clients";
+                String oktaInstanceUrl = OktaConstants.OKTA_INSTANCE_URL;
+                String apiKey = OktaConstants.REGISTRATION_API_KEY;
+                String registrationEndpoint = oktaInstanceUrl + OktaConstants.CLIENT_ENDPOINT;
                 if (StringUtils.isNotEmpty(clientId)) {
                     registrationEndpoint += "/" + clientId;
                 }
@@ -118,7 +115,8 @@ public class MigrateService {
                         JSONObject responseObject = getParsedObjectByReader(reader);
                         if (statusCode == HttpStatus.SC_OK) {
                             if (responseObject != null) {
-                            oAuthApplicationInfo=createOAuthAppInfoFromResponse(responseObject);
+                                OauthAppInformation oauthAppInformation = new OauthAppInformation();
+                                oAuthApplicationInfo = oauthAppInformation.createOAuthAppInfoFromResponse(responseObject);
                             } else {
                                 handleException("ResponseObject is empty. Can not return oAuthApplicationInfo.");
                             }
@@ -163,54 +161,6 @@ public class MigrateService {
             parsedObject = (JSONObject) parser.parse(reader);
         }
         return parsedObject;
-    }
-
-    private static OAuthApplicationInfo createOAuthAppInfoFromResponse(Map responseMap) {
-        OAuthApplicationInfo appInfo = new OAuthApplicationInfo();
-        String clientName = (String) responseMap.get("client_name");
-
-        appInfo.setClientName(clientName);
-        appInfo.setClientId((String) responseMap.get("client_id"));
-        appInfo.setClientSecret((String) responseMap.get("client_secret"));
-        JSONArray callbackUrl = (JSONArray) responseMap.get("redirect_uris");
-        if (callbackUrl != null) {
-            appInfo.setCallBackURL((String) callbackUrl.toArray()[0]);
-        }
-        Object clientIdIssuedAt = responseMap.get("client_id_issued_at");
-        appInfo.addParameter("client_id_issued_at", clientIdIssuedAt);
-
-        Object clientSecretExpiresAt = responseMap.get("client_secret_expires_at");
-        appInfo.addParameter("client_secret_expires_at", clientSecretExpiresAt);
-
-        Object clientUri = responseMap.get("client_uri");
-        appInfo.addParameter("client_uri", clientUri);
-
-        Object logoUri = responseMap.get("logo_uri");
-        appInfo.addParameter("logo_uri", logoUri);
-
-        Object applicationType = responseMap.get("application_type");
-        appInfo.addParameter("application_type", applicationType);
-
-        Object postLogoutRedirectUris = responseMap.get("post_logout_redirect_uris");
-        appInfo.addParameter("post_logout_redirect_uris", postLogoutRedirectUris);
-
-        Object responseTypes = responseMap.get("response_types");
-        appInfo.addParameter("response_types", responseTypes);
-
-        Object grantTypes = responseMap.get("grant_types");
-        appInfo.addParameter("grant_types", String.join(" ", (JSONArray) grantTypes));
-
-        Object tokenEndpointAuthMethod = responseMap.get("token_endpoint_auth_method");
-        appInfo.addParameter("token_endpoint_auth_method", tokenEndpointAuthMethod);
-
-        Object initiateLoginUri = responseMap.get("initiate_login_uri");
-        appInfo.addParameter("initiate_login_uri", initiateLoginUri);
-
-        appInfo.addParameter("additionalProperties", responseMap.toString());
-
-        System.out.println(appInfo.getClientSecret());
-
-        return appInfo;
     }
 
     private static void handleException(String msg) throws Exception {

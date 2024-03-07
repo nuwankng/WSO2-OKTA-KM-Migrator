@@ -95,7 +95,7 @@
                             <archive>
                                 <manifest>
                                     <mainClass>
-                                        MigrateService
+                                        org.wso2.migrator.MigrateService
                                     </mainClass>
                                 </manifest>
                             </archive>
